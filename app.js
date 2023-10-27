@@ -1,50 +1,70 @@
 // app.js
-require('dotenv').config();
 const express = require('express');
-const jwt = require('jsonwebtoken');
-const port = 3000;
 const app = express();
-
 app.use(express.json());
 
-// Usuarios predefinidos
-const users = [
-  { id: 1, username: 'user1', password: 'password1' },
-  { id: 2, username: 'user2', password: 'password2' },
-];
+let tasks = [];
 
-// Ruta de login
-app.post('/login', (req, res) => {
-  const { username, password } = req.body;
-  const user = users.find(u => u.username === username && u.password === password);
+// Ruta para crear una nueva tarea
+app.post('/tasks', (req, res) => {
+  const task = req.body;
+  tasks.push(task);
+  res.status(201).json(task);
+});
 
-  if (user) {
-    const accessToken = jwt.sign({ id: user.id, username: user.username }, process.env.ACCESS_TOKEN_SECRET);
-    res.json({ accessToken });
+// Ruta para actualizar una tarea
+app.put('/tasks/:id', (req, res) => {
+  const id = req.params.id;
+  const updatedTask = req.body;
+  const index = tasks.findIndex(task => task.id === id);
+  if (index !== -1) {
+    tasks[index] = updatedTask;
+    res.json(updatedTask);
   } else {
-    res.status(401).send('Usuario o contraseña incorrectos');
+    res.status(404).send('Tarea no encontrada');
   }
 });
 
-// Middleware para validar el token JWT
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) return res.status(401).send('Token no proporcionado');
-
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
-    if (err) return res.status(403).send('Token no válido');
-    req.user = user;
-    next();
-  });
-}
-
-// Ruta protegida
-app.get('/protected', authenticateToken, (req, res) => {
-  res.send('Acceso autorizado');
+// Ruta para eliminar una tarea
+app.delete('/tasks/:id', (req, res) => {
+  const id = req.params.id;
+  const index = tasks.findIndex(task => task.id === id);
+  if (index !== -1) {
+    tasks.splice(index, 1);
+    res.status(204).send();
+  } else {
+    res.status(404).send('Tarea no encontrada');
+  }
 });
 
-app.listen(port, () => {
-  console.log(`El servidor esta corriendo en el puerto ${port}`);
+// Ruta para listar todas las tareas
+app.get('/tasks', (req, res) => {
+  res.json(tasks);
+});
+
+// Ruta para listar las tareas completas
+app.get('/tasks/completed', (req, res) => {
+  const completedTasks = tasks.filter(task => task.isCompleted);
+  res.json(completedTasks);
+});
+
+// Ruta para listar las tareas incompletas
+app.get('/tasks/incomplete', (req, res) => {
+  const incompleteTasks = tasks.filter(task => !task.isCompleted);
+  res.json(incompleteTasks);
+});
+
+// Ruta para obtener una sola tarea
+app.get('/tasks/:id', (req, res) => {
+  const id = req.params.id;
+  const task = tasks.find(task => task.id === id);
+  if (task) {
+    res.json(task);
+  } else {
+    res.status(404).send('Tarea no encontrada');
+  }
+});
+
+app.listen(3000, () => {
+  console.log('El servidor está corriendo en el puerto 3000');
 });
